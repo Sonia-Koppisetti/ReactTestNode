@@ -42,22 +42,65 @@ const AddMeeting = (props) => {
     const formik = useFormik({
         initialValues: initialValues,
         validationSchema: MeetingSchema,
-        onSubmit: (values, { resetForm }) => {
-            
+        onSubmit: async (values, formikHelpers) => {
+            await AddData(values, formikHelpers.resetForm);
         },
     });
     const { errors, touched, values, handleBlur, handleChange, handleSubmit, setFieldValue } = formik
 
-    const AddData = async () => {
+    const AddData = async (values, resetForm) => {
+        setIsLoding(true);
+    try {
+        const payload = {
+            agenda: values.agenda,
+            attendes: values.attendes || [],
+            attendesLead: values.attendesLead || [],
+            location: values.location,
+            related: values.related,
+            dateTime: values.dateTime,
+            notes: values.notes,
+            createBy: values.createBy,
+        };
 
+        const response = await postApi('api/meeting/add', payload);
+
+        if (response?.status === 200) {
+            toast.success("Meeting added successfully");
+            resetForm();
+            fetchData();
+            onClose();
+        } else {
+            toast.error(response?.data?.message || "Failed to add meeting");
+        }
+    } catch (err) {
+        console.error(err);
+        toast.error("Something went wrong!");
+    } finally {
+        setIsLoding(false);
+    }
     };
 
     const fetchAllData = async () => {
-        
+        fetchData();
     }
 
-    useEffect(() => {
-
+    useEffect(async () => {
+        values.start = props?.date
+        try {
+            let result
+            if (values.related === "Contact" && contactdata.length <= 0 ) {
+                result = await getApi(user.role === 'superAdmin' ? 'api/contact/' : `api/contact/?createBy=${user._id}`)
+                console.log(result?.data, "contacts data")
+                setContactData(result?.data)
+            } else if (values.related === "Lead" && leaddata.length <= 0) {
+                result = await getApi(user.role === 'superAdmin' ? 'api/lead/' : `api/lead/?createBy=${user._id}`);
+                console.log(result?.data, "leads data")
+                setLeadData(result?.data)
+            }
+        }
+        catch (e) {
+            console.log(e);
+        }
     }, [props.id, values.related])
 
     const extractLabels = (selectedItems) => {
